@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>团队管理看板 - RUIENCO</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.min.css"/>
+<script>
+class _SQ{
+  constructor(u,k,t){this.u=u;this.k=k;this.t=t;this.f=[];this.s='*';this.l=null;this.o=null;this.sg=false;this.m='GET';this.b=null;this.sc=false;}
+  select(s){this.s=s;this.sc=true;return this;}
+  eq(c,v){this.f.push(c+'=eq.'+encodeURIComponent(v));return this;}
+  limit(n){this.l=n;return this;}
+  order(c,{ascending:a=true}={}){this.o=c+'.'+(a?'asc':'desc');return this;}
+  single(){this.sg=true;return this;}
+  insert(d){this.m='POST';this.b=JSON.stringify(Array.isArray(d)?d:[d]);return this;}
+  update(d){this.m='PATCH';this.b=JSON.stringify(d);return this;}
+  delete(){this.m='DELETE';return this;}
+  then(res){
+    let ep=this.u+'/rest/v1/'+this.t,p=[];
+    if(this.m==='GET'){p.push('select='+this.s);this.f.forEach(f=>p.push(f));if(this.l)p.push('limit='+this.l);if(this.o)p.push('order='+this.o);}
+    else{this.f.forEach(f=>p.push(f));if(this.sc)p.push('select='+this.s);}
+    if(p.length)ep+='?'+p.join('&');
+    const h={'apikey':this.k,'Authorization':'Bearer '+this.k,'Content-Type':'application/json'};
+    if(this.sg)h['Accept']='application/vnd.pgrst.object+json';
+    const pr=[];
+    if(this.m==='POST'||this.m==='PATCH')pr.push(this.sc||this.sg?'return=representation':'return=minimal');
+    if(pr.length)h['Prefer']=pr.join(',');
+    fetch(ep,{method:this.m,headers:h,body:this.b})
+      .then(r=>r.text().then(t=>{try{return t?JSON.parse(t):null;}catch(e){return null;}}))
+      .then(d=>{if(!d)return res({data:null,error:null});if(d.code)return res({data:null,error:d});res({data:this.sg?(Array.isArray(d)?d[0]:d):d,error:null});})
+      .catch(e=>res({data:null,error:e}));
+  }
+}
+window.supabase={createClient:(u,k)=>({from:t=>new _SQ(u,k,t)})};
+</script>
+<style>
+:root{--primary:#6366F1;--bg:#F1F5F9;}
+body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+.sidebar{background:linear-gradient(180deg,#1e1b4b 0%,#312e81 100%);}
+.nav-item{transition:all .2s;}
+.nav-item:hover,.nav-item.active{background:rgba(99,102,241,.3);}
+.card-shadow{box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.modal-overlay{background:rgba(0,0,0,.5);}
+.scrollbar-thin::-webkit-scrollbar{width:4px;}
+.scrollbar-thin::-webkit-scrollbar-thumb{background:#a5b4fc;border-radius:2px;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#6366F1!important;box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+.btn-primary{background:#6366F1;color:#fff;transition:background .2s;}
+.btn-primary:hover{background:#4F46E5;}
+.btn-danger{background:#EF4444;color:#fff;transition:background .2s;}
+.btn-danger:hover{background:#DC2626;}
+.btn-success{background:#10B981;color:#fff;transition:background .2s;}
+.btn-success:hover{background:#059669;}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:6px;}
+table th{position:sticky;top:0;z-index:5;}
+.sidebar-open{transform:translateX(0)!important;}
+@media(max-width:768px){
+  .sidebar-mobile-hidden{transform:translateX(-100%);}
+  .main-content{margin-left:0!important;}
+}
+.fade-in{animation:fadeIn .3s;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;}
+.tag-green{background:#D1FAE5;color:#065F46;}
+.tag-yellow{background:#FEF3C7;color:#92400E;}
+.tag-red{background:#FEE2E2;color:#991B1B;}
+.tag-blue{background:#DBEAFE;color:#1E40AF;}
+.tag-purple{background:#EDE9FE;color:#5B21B6;}
+.tag-gray{background:#F1F5F9;color:#475569;}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- LOGIN -->
+<div id="loginPage" class="min-h-screen flex items-center justify-center" style="background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#A78BFA 100%);">
+  <div class="bg-white rounded-2xl card-shadow p-10 w-full max-w-md mx-4">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-indigo-50 flex items-center justify-center">
+        <i class="fa fa-tachometer text-3xl text-indigo-500"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-800">团队管理看板</h1>
+      <p class="text-gray-400 text-sm mt-1">RUIENCO 内部管理系统</p>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+        <div class="relative">
+          <i class="fa fa-user absolute left-3 top-3 text-gray-400"></i>
+          <input id="loginName" type="text" placeholder="请输入用户名" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+        <div class="relative">
+          <i class="fa fa-lock absolute left-3 top-3 text-gray-400"></i>
+          <input id="loginPassword" type="password" placeholder="请输入密码" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+      </div>
+      <div id="loginError" class="hidden text-red-500 text-sm text-center bg-red-50 p-2 rounded-lg"></div>
+      <button onclick="doLogin()" id="loginBtn" class="w-full btn-primary py-2.5 rounded-lg font-semibold text-sm mt-2">
+        <i class="fa fa-sign-in mr-2"></i>登录
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="hidden">
+  <!-- Mobile header -->
+  <div class="md:hidden bg-white sticky top-0 z-40 px-4 py-3 flex items-center justify-between card-shadow">
+    <button onclick="toggleSidebar()" class="text-gray-600"><i class="fa fa-bars text-xl"></i></button>
+    <span class="font-semibold text-gray-800" id="mobileTitle">团队看板</span>
+    <button onclick="doLogout()" class="text-gray-400"><i class="fa fa-sign-out"></i></button>
+  </div>
+
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar w-60 fixed top-0 left-0 h-full flex flex-col z-50 scrollbar-thin overflow-y-auto transition-transform duration-300 sidebar-mobile-hidden md:translate-x-0">
+      <div class="p-5 border-b border-white/10">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+            <i class="fa fa-tachometer text-white text-lg"></i>
+          </div>
+          <div>
+            <div class="text-white font-bold text-sm">RUIENCO</div>
+            <div class="text-indigo-300 text-xs">团队管理看板</div>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 p-3 space-y-1 mt-2" id="navContainer"></nav>
+      <div class="p-4 border-t border-white/10">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold" id="userAvatar">U</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-white text-sm font-medium truncate" id="sidebarUsername">用户</div>
+            <div class="text-indigo-300 text-xs" id="sidebarRole">-</div>
+          </div>
+        </div>
+        <button onclick="doLogout()" class="w-full flex items-center justify-center gap-2 text-indigo-300 hover:text-white text-sm py-1.5 rounded-lg hover:bg-white/10">
+          <i class="fa fa-sign-out"></i><span>退出登录</span>
+        </button>
+      </div>
+    </div>
+    <!-- Overlay -->
+    <div id="sidebarOverlay" class="hidden fixed inset-0 bg-black/40 z-40 md:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Content -->
+    <div class="md:ml-60 flex-1 min-h-screen main-content">
+      <div class="hidden md:flex bg-white sticky top-0 z-30 px-6 py-3 items-center justify-between card-shadow">
+        <h2 class="text-gray-800 font-semibold text-lg" id="pageTitle">看板</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-500"><span class="font-medium text-gray-800" id="topUsername"></span></span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium tag-purple" id="topRoleBadge"></span>
+        </div>
+      </div>
+      <div class="p-4 md:p-6" id="pageContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Generic CRUD Modal -->
+<div id="crudModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
+  <div class="bg-white rounded-2xl w-full max-w-lg card-shadow overflow-hidden max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between p-5 border-b shrink-0">
+      <h3 class="font-bold text-gray-800 text-lg" id="crudModalTitle">新增记录</h3>
+      <button onclick="closeCrudModal()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-4 overflow-y-auto scrollbar-thin" id="crudFormFields"></div>
+    <div id="crudError" class="hidden px-5 text-red-500 text-sm"></div>
+    <div class="p-4 border-t flex justify-end gap-2 shrink-0 bg-gray-50">
+      <button onclick="closeCrudModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">取消</button>
+      <button onclick="saveCrud()" id="crudSaveBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-medium">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail/View Modal -->
+<div id="detailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
+  <div class="bg-white rounded-2xl w-full max-w-lg card-shadow overflow-hidden">
+    <div class="flex items-center justify-between p-5 border-b">
+      <h3 class="font-bold text-gray-800 text-lg">详情</h3>
+      <button onclick="closeModal('detailModal')" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+    </div>
+    <div id="detailContent" class="p-5 space-y-3 max-h-[60vh] overflow-y-auto scrollbar-thin text-sm"></div>
+    <div class="p-4 border-t flex justify-end">
+      <button onclick="closeModal('detailModal')" class="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 right-6 z-[100] px-5 py-3 rounded-xl text-white text-sm font-medium card-shadow transition-all"></div>
+
+<script>
+// ===== CONFIG =====
+const SUPABASE_URL='https://hqtpatpjwefiymtmufec.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxdHBhdHBqd2VmaXltdG11ZmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNDg0NzUsImV4cCI6MjA4OTgyNDQ3NX0.VIfw5k-eOnJeBImwAfkh5L8KrHVwaqv2QyI1d5Vv6lI';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const MODULES=[
+  {id:'sunshiyun',name:'孙诗芸',subtitle:'内容编导',icon:'fa-video-camera',users:['孙诗芸'],
+    tables:[
+      {id:'content_planning',name:'本周选题/内容策划',table:'team_content_planning',cols:[
+        {key:'topic',label:'选题名称',type:'text'},
+        {key:'script_status',label:'脚本状态',type:'select',options:['待编写','编写中','已完成','需修改']},
+        {key:'shoot_status',label:'拍摄状态',type:'select',options:['待拍摄','拍摄中','已完成','取消']},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'shoot_execution',name:'拍摄执行',table:'team_shoot_execution',cols:[
+        {key:'shoot_date',label:'拍摄日期',type:'date'},
+        {key:'content',label:'拍摄内容',type:'text'},
+        {key:'shooter',label:'拍摄人',type:'text'},
+        {key:'material_status',label:'素材状态',type:'select',options:['待整理','整理中','已交付']},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'editing_progress',name:'剪辑进度',table:'team_editing_progress',cols:[
+        {key:'title',label:'片名',type:'text'},
+        {key:'stage',label:'当前阶段',type:'select',options:['初稿剪辑中','已交剪辑助理','审核中','已完成']},
+        {key:'deadline',label:'截止日期',type:'date'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'quality_review',name:'成片质量审核',table:'team_quality_review',cols:[
+        {key:'title',label:'片名',type:'text'},
+        {key:'review_result',label:'审核结果',type:'select',options:['通过','需修改','未通过']},
+        {key:'comments',label:'修改意见',type:'textarea'},
+        {key:'delivery_date',label:'交付日期',type:'date'}
+      ]}
+    ]},
+  {id:'siyu',name:'私域部门',subtitle:'私域运营',icon:'fa-users',users:['私域'],
+    tables:[
+      {id:'private_daily',name:'每日数据统计',table:'team_private_daily',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'new_members',label:'私域新增人数',type:'number'},
+        {key:'sales',label:'当日销售额',type:'number'},
+        {key:'returns',label:'当日退货额',type:'number'}
+      ]}
+    ]},
+  {id:'gendan',name:'跟单部门',subtitle:'跟单管理',icon:'fa-truck',users:['跟单'],
+    tables:[
+      {id:'merch_new',name:'上新翻单情况',table:'team_merchandising',filter:{category:'上新翻单'},showCategory:false,cols:[
+        {key:'item',label:'事项',type:'text'},
+        {key:'status',label:'状态',type:'select',options:['待处理','进行中','已完成','已取消']},
+        {key:'deadline',label:'截止日期',type:'date'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'merch_hot',name:'爆款跟进情况',table:'team_merchandising',filter:{category:'爆款跟进'},showCategory:false,cols:[
+        {key:'item',label:'事项',type:'text'},
+        {key:'status',label:'状态',type:'select',options:['待处理','进行中','已完成','已取消']},
+        {key:'deadline',label:'截止日期',type:'date'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'merch_incident',name:'突发事件处理',table:'team_merchandising',filter:{category:'突发事件'},showCategory:false,cols:[
+        {key:'item',label:'事项',type:'text'},
+        {key:'status',label:'状态',type:'select',options:['待处理','进行中','已完成','已取消']},
+        {key:'deadline',label:'截止日期',type:'date'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'merch_daily',name:'日销备单',table:'team_merchandising',filter:{category:'日销备单'},showCategory:false,cols:[
+        {key:'item',label:'事项',type:'text'},
+        {key:'status',label:'状态',type:'select',options:['待处理','进行中','已完成','已取消']},
+        {key:'deadline',label:'截止日期',type:'date'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]},
+  {id:'zhanwang',name:'展望',subtitle:'直播中控&运营',icon:'fa-broadcast-tower',users:['展望'],
+    tables:[
+      {id:'zw_schedule',name:'直播排期',table:'team_zw_schedule',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'host',label:'主播',type:'text'},
+        {key:'platform',label:'平台',type:'select',options:['抖音','视频号','小红书','淘宝']},
+        {key:'theme',label:'直播主题',type:'text'},
+        {key:'status',label:'状态',type:'select',options:['待确认','已排期','进行中','已结束']}
+      ]},
+      {id:'zw_control',name:'直播执行/中控记录',table:'team_zw_control',cols:[
+        {key:'session',label:'场次',type:'text'},
+        {key:'start_time',label:'开播时间',type:'datetime-local'},
+        {key:'duration',label:'直播时长',type:'text'},
+        {key:'notes',label:'场控备注',type:'textarea'},
+        {key:'incidents',label:'突发情况',type:'textarea'}
+      ]},
+      {id:'zw_review',name:'直播数据复盘',table:'team_zw_review',cols:[
+        {key:'session',label:'场次',type:'text'},
+        {key:'gmv',label:'GMV',type:'number'},
+        {key:'viewers',label:'观看人数',type:'number'},
+        {key:'conversion',label:'转化率',type:'text'},
+        {key:'return_rate',label:'退货率',type:'text'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'zw_product',name:'选品准备',table:'team_zw_product',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'stock_confirmed',label:'库存确认',type:'text'},
+        {key:'sample_status',label:'样品状态',type:'select',options:['未准备','已确认','已就位']},
+        {key:'live_price',label:'直播价',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]},
+  {id:'sheji',name:'设计部门',subtitle:'设计管理',icon:'fa-paint-brush',users:['设计'],
+    tables:[
+      {id:'design_output',name:'产出数量',table:'team_design_output',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'designs',label:'设计稿数',type:'number'},
+        {key:'finalized',label:'定稿数',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'design_efficiency',name:'产出效率',table:'team_design_efficiency',cols:[
+        {key:'task',label:'任务/款式',type:'text'},
+        {key:'req_date',label:'需求日期',type:'date'},
+        {key:'done_date',label:'完成日期',type:'date'},
+        {key:'days_taken',label:'耗时(天)',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'design_rev_count',name:'复版次数',table:'team_design_rev_count',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'revisions',label:'复版次数',type:'number'},
+        {key:'current_ver',label:'当前版本',type:'text'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'design_rev_eff',name:'复版效率',table:'team_design_rev_eff',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'sent_date',label:'送版日期',type:'date'},
+        {key:'done_date',label:'复版完成日期',type:'date'},
+        {key:'days_taken',label:'耗时(天)',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]},
+  {id:'chenyujie',name:'陈玉杰',subtitle:'投放运营',icon:'fa-bullhorn',users:['陈玉杰'],
+    tables:[
+      {id:'ad_overview',name:'投放执行总览',table:'team_ad_overview',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'platform',label:'平台',type:'select',options:['抖音','视频号','小红书']},
+        {key:'ad_type',label:'投放类型',type:'select',options:['直播投放','商品卡','抖+加热','薯条加热']},
+        {key:'account',label:'账户',type:'text'},
+        {key:'cost',label:'消耗(元)',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'ad_livestream',name:'直播投放配合',table:'team_ad_livestream',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'host_session',label:'主播/场次',type:'text'},
+        {key:'account',label:'投放账户',type:'text'},
+        {key:'cost',label:'消耗(元)',type:'number'},
+        {key:'roi',label:'ROI',type:'text'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'ad_material',name:'素材跑量追踪',table:'team_ad_material',cols:[
+        {key:'material',label:'素材/视频',type:'text'},
+        {key:'platform',label:'平台',type:'text'},
+        {key:'effect',label:'跑量效果',type:'select',options:['优','良','一般','差']},
+        {key:'linked',label:'是否挂车',type:'select',options:['是','否']},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'ad_clip',name:'百应切片发布',table:'team_ad_clip',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'session',label:'直播场次',type:'text'},
+        {key:'clips',label:'切片条数',type:'number'},
+        {key:'status',label:'发布状态',type:'select',options:['待发布','已发布']},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'ad_daily',name:'每日投放数据汇报',table:'team_ad_daily',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'total_cost',label:'总消耗(元)',type:'number'},
+        {key:'key_metrics',label:'关键指标',type:'text'},
+        {key:'sent_group',label:'已发群',type:'select',options:['是','否']},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]},
+  {id:'linfei',name:'林飞',subtitle:'直播中控&库存管理',icon:'fa-cubes',users:['林飞'],
+    tables:[
+      {id:'lf_schedule',name:'直播排期&中控记录',table:'team_lf_schedule',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'host',label:'主播',type:'text'},
+        {key:'platform',label:'平台',type:'text'},
+        {key:'start_time',label:'开播时间',type:'time'},
+        {key:'duration',label:'直播时长',type:'text'},
+        {key:'notes',label:'场控备注',type:'textarea'}
+      ]},
+      {id:'lf_listing',name:'直播链接&商品上架',table:'team_lf_listing',cols:[
+        {key:'session',label:'直播场次',type:'text'},
+        {key:'products',label:'上架商品数',type:'number'},
+        {key:'link_status',label:'链接状态',type:'text'},
+        {key:'price_changes',label:'改价/调库存记录',type:'textarea'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'lf_inventory',name:'库存盘点',table:'team_lf_inventory',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'sys_stock',label:'系统库存',type:'number'},
+        {key:'actual_stock',label:'实际库存',type:'number'},
+        {key:'diff',label:'差异',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'lf_stock_alert',name:'库存预警',table:'team_lf_stock_alert',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'current_stock',label:'当前库存',type:'number'},
+        {key:'safe_stock',label:'安全库存',type:'number'},
+        {key:'status',label:'状态',type:'select',options:['充足','预警','缺货','已提交补货']},
+        {key:'progress',label:'补货进度',type:'text'}
+      ]},
+      {id:'lf_restock',name:'补货跟进',table:'team_lf_restock',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'quantity',label:'补货数量',type:'number'},
+        {key:'submit_date',label:'提交日期',type:'date'},
+        {key:'expected_date',label:'预计到货',type:'date'},
+        {key:'actual_date',label:'实际到货',type:'date'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]},
+  {id:'chenyajuan',name:'陈亚娟',subtitle:'设计',icon:'fa-paint-brush',users:['陈亚娟'],
+    tables:[
+      {id:'cyj_output',name:'产出数量',table:'team_cyj_output',cols:[
+        {key:'date',label:'日期',type:'date'},
+        {key:'designs',label:'设计稿数',type:'number'},
+        {key:'finalized',label:'定稿数',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'cyj_efficiency',name:'产出效率',table:'team_cyj_efficiency',cols:[
+        {key:'task',label:'任务/款式',type:'text'},
+        {key:'req_date',label:'需求日期',type:'date'},
+        {key:'done_date',label:'完成日期',type:'date'},
+        {key:'days_taken',label:'耗时(天)',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'cyj_rev_count',name:'复版次数',table:'team_cyj_rev_count',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'revisions',label:'复版次数',type:'number'},
+        {key:'current_ver',label:'当前版本',type:'text'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'cyj_rev_eff',name:'复版效率',table:'team_cyj_rev_eff',cols:[
+        {key:'style',label:'款式/货号',type:'text'},
+        {key:'sent_date',label:'送版日期',type:'date'},
+        {key:'done_date',label:'复版完成日期',type:'date'},
+        {key:'days_taken',label:'耗时(天)',type:'number'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]},
+  {id:'renshi',name:'人事部门',subtitle:'人事管理',icon:'fa-id-card',users:['人事'],
+    tables:[
+      {id:'hr_recruit',name:'招聘进度',table:'team_hr_recruit',cols:[
+        {key:'position',label:'岗位',type:'text'},
+        {key:'headcount',label:'需求人数',type:'number'},
+        {key:'resumes',label:'简历数',type:'number'},
+        {key:'interviews',label:'面试安排',type:'text'},
+        {key:'status',label:'状态',type:'select',options:['招聘中','面试中','已发offer','已入职','已关闭']},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'hr_relation',name:'员工关系',table:'team_hr_relation',cols:[
+        {key:'item',label:'事项',type:'text'},
+        {key:'people',label:'涉及人员',type:'text'},
+        {key:'progress',label:'处理进度',type:'text'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]},
+      {id:'hr_host',name:'主播排班',table:'team_hr_host',cols:[
+        {key:'week',label:'周次',type:'text'},
+        {key:'host',label:'主播',type:'text'},
+        {key:'schedule',label:'排班日期/时间',type:'text'},
+        {key:'platform',label:'平台',type:'text'},
+        {key:'notes',label:'备注',type:'textarea'}
+      ]}
+    ]}
+];
+
+// Common tables config
+const COMMON_TABLES=[
+  {id:'meetings',name:'会议安排(每周1v1)',table:'team_meetings',cols:[
+    {key:'week',label:'周次',type:'text'},
+    {key:'meeting_time',label:'会议时间',type:'datetime-local'},
+    {key:'topic',label:'会议主题',type:'text'},
+    {key:'status',label:'状态',type:'select',options:['待开始','进行中','已完成','已取消']}
+  ]},
+  {id:'issues',name:'问题反馈',table:'team_issues',cols:[
+    {key:'content',label:'问题描述',type:'textarea'},
+    {key:'priority',label:'优先级',type:'select',options:['低','中','高','紧急']},
+    {key:'status',label:'状态',type:'select',options:['待处理','处理中','已解决']},
+    {key:'notes',label:'备注',type:'textarea'}
+  ]}
+];
+
+// ===== STATE =====
+let currentUser=null;
+let currentModule=null;
+let currentTableConfig=null;
+let editingId=null;
+let tableDataCache={};
+
+// ===== AUTH =====
+async function doLogin(){
+  const name=document.getElementById('loginName').value.trim();
+  const pw=document.getElementById('loginPassword').value;
+  const err=document.getElementById('loginError');
+  err.classList.add('hidden');
+  if(!name||!pw){err.textContent='请填写用户名和密码';err.classList.remove('hidden');return;}
+  const btn=document.getElementById('loginBtn');
+  btn.disabled=true;btn.innerHTML='<i class="fa fa-spinner fa-spin mr-2"></i>登录中...';
+  try{
+    const{data,error}=await db.from('team_users').select('*').eq('name',name).eq('password',pw).single();
+    if(error||!data){err.textContent='用户名或密码错误';err.classList.remove('hidden');}
+    else{
+      currentUser={id:data.id,name:data.name,role:data.role};
+      localStorage.setItem('teamBoardUser',JSON.stringify(currentUser));
+      showApp();
+    }
+  }catch(e){err.textContent='登录失败：'+e.message;err.classList.remove('hidden');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="fa fa-sign-in mr-2"></i>登录';}
+}
+
+function doLogout(){
+  currentUser=null;
+  localStorage.removeItem('teamBoardUser');
+  document.getElementById('loginPage').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+}
+
+// ===== INIT =====
+async function init(){
+  const stored=localStorage.getItem('teamBoardUser');
+  if(stored){currentUser=JSON.parse(stored);showApp();}
+  else{await ensureAdmin();}
+}
+
+async function ensureAdmin(){
+  try{
+    const{data}=await db.from('team_users').select('id').limit(1);
+    if(!data||data.length===0){
+      await db.from('team_users').insert({name:'admin',password:'admin123',role:'admin'});
+    }
+  }catch(e){console.log(e);}
+}
+
+function showApp(){
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('sidebarUsername').textContent=currentUser.name;
+  document.getElementById('topUsername').textContent=currentUser.name;
+  document.getElementById('userAvatar').textContent=currentUser.name[0];
+  const isAdmin=currentUser.role==='admin';
+  document.getElementById('sidebarRole').textContent=isAdmin?'管理员':'成员';
+  document.getElementById('topRoleBadge').textContent=isAdmin?'管理员':'成员';
+  buildNav();
+  // Auto-navigate to first accessible module
+  const mods=isAdmin?MODULES:MODULES.filter(m=>m.users.includes(currentUser.name));
+  if(mods.length>0) navigateTo(mods[0].id);
+  else showToast('暂无可访问模块','bg-yellow-500');
+}
+
+function buildNav(){
+  const c=document.getElementById('navContainer');
+  const isAdmin=currentUser.role==='admin';
+  let html='<div class="text-indigo-400 text-xs font-semibold px-3 py-1 uppercase tracking-wider">管理模块</div>';
+  MODULES.forEach(m=>{
+    if(!isAdmin&&!m.users.includes(currentUser.name))return;
+    html+=`<a onclick="navigateTo('${m.id}')" id="nav-${m.id}" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-indigo-100 text-sm">
+      <i class="fa ${m.icon} w-5 text-center"></i><span>${m.name}</span>
+      <span class="text-indigo-400 text-xs ml-auto">${m.subtitle}</span></a>`;
+  });
+  c.innerHTML=html;
+}
+
+function toggleSidebar(){
+  const s=document.getElementById('sidebar');
+  const o=document.getElementById('sidebarOverlay');
+  s.classList.toggle('sidebar-mobile-hidden');
+  o.classList.toggle('hidden');
+}
+
+// ===== NAVIGATION =====
+function navigateTo(moduleId){
+  currentModule=MODULES.find(m=>m.id===moduleId);
+  if(!currentModule)return;
+  // Update nav active state
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const navEl=document.getElementById('nav-'+moduleId);
+  if(navEl)navEl.classList.add('active');
+  document.getElementById('pageTitle').textContent=currentModule.name+' - '+currentModule.subtitle;
+  document.getElementById('mobileTitle').textContent=currentModule.name;
+  renderModule();
+  // Close sidebar on mobile
+  if(window.innerWidth<768){
+    document.getElementById('sidebar').classList.add('sidebar-mobile-hidden');
+    document.getElementById('sidebarOverlay').classList.add('hidden');
+  }
+}
+
+async function renderModule(){
+  const c=document.getElementById('pageContent');
+  const m=currentModule;
+  const allTables=[...m.tables,...COMMON_TABLES.map(t=>({...t,table:t.table,extraFilter:{module_id:m.id}}))];
+
+  let html='<div class="fade-in space-y-6">';
+  // Module header
+  html+=`<div class="bg-white rounded-xl p-5 card-shadow">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center"><i class="fa ${m.icon} text-indigo-500 text-lg"></i></div>
+      <div><h3 class="font-bold text-gray-800 text-lg">${m.name}</h3><p class="text-gray-400 text-sm">${m.subtitle}</p></div>
+    </div>
+  </div>`;
+
+  // Tabs for tables
+  const tabId='tabs-'+m.id;
+  html+=`<div class="bg-white rounded-xl card-shadow overflow-hidden">`;
+  html+=`<div class="border-b overflow-x-auto flex" id="${tabId}">`;
+  allTables.forEach((t,i)=>{
+    const active=i===0?'border-b-2 border-indigo-500 text-indigo-600 font-semibold':'text-gray-500';
+    html+=`<button onclick="switchTab('${m.id}',${i})" id="tab-${m.id}-${i}" class="px-4 py-3 text-sm whitespace-nowrap ${active} hover:text-indigo-600 transition-colors">${t.name}</button>`;
+  });
+  html+=`</div>`;
+  html+=`<div id="tableContainer-${m.id}" class="p-4"><div class="text-center text-gray-400 py-8"><i class="fa fa-spinner fa-spin mr-2"></i>加载中...</div></div>`;
+  html+=`</div></div>`;
+  c.innerHTML=html;
+
+  // Load first tab
+  switchTab(m.id,0);
+}
+
+function switchTab(moduleId,index){
+  const m=MODULES.find(mod=>mod.id===moduleId);
+  const allTables=[...m.tables,...COMMON_TABLES.map(t=>({...t,table:t.table,extraFilter:{module_id:m.id}}))];
+  const t=allTables[index];
+  // Update tab styles
+  allTables.forEach((_,i)=>{
+    const el=document.getElementById('tab-'+moduleId+'-'+i);
+    if(el){if(i===index){el.className='px-4 py-3 text-sm whitespace-nowrap border-b-2 border-indigo-500 text-indigo-600 font-semibold hover:text-indigo-600 transition-colors';}
+    else{el.className='px-4 py-3 text-sm whitespace-nowrap text-gray-500 hover:text-indigo-600 transition-colors';}}
+  });
+  loadTable(t,moduleId);
+}
+
+async function loadTable(tConfig,moduleId){
+  currentTableConfig=tConfig;
+  const container=document.getElementById('tableContainer-'+moduleId);
+  if(!container)return;
+
+  let query=db.from(tConfig.table).select('*').order('created_at',{ascending:false}).limit(200);
+  // Apply filters
+  if(tConfig.filter){Object.entries(tConfig.filter).forEach(([k,v])=>query=query.eq(k,v));}
+  if(tConfig.extraFilter){Object.entries(tConfig.extraFilter).forEach(([k,v])=>query=query.eq(k,v));}
+
+  const{data,error}=await query;
+  if(error){container.innerHTML='<div class="text-red-500 text-sm p-4">加载失败: '+error.message+'</div>';return;}
+
+  tableDataCache[tConfig.id]=data||[];
+  renderTableData(tConfig,data||[],container);
+}
+
+function renderTableData(tConfig,data,container){
+  const cols=tConfig.cols;
+  const isAdmin=currentUser.role==='admin';
+  let html=`<div class="flex items-center justify-between mb-4">
+    <div class="text-sm text-gray-500">共 ${data.length} 条记录</div>
+    <button onclick="openCrudModal(null)" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+      <i class="fa fa-plus mr-1"></i>新增
+    </button>
+  </div>`;
+
+  if(data.length===0){
+    html+='<div class="text-center text-gray-400 py-12"><i class="fa fa-inbox text-4xl mb-3 block"></i>暂无数据</div>';
+  }else{
+    html+='<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="bg-gray-50">';
+    html+='<th class="px-3 py-2.5 text-left text-gray-600 font-medium rounded-tl-lg">#</th>';
+    cols.forEach(c=>{html+=`<th class="px-3 py-2.5 text-left text-gray-600 font-medium">${c.label}</th>`;});
+    html+='<th class="px-3 py-2.5 text-right text-gray-600 font-medium rounded-tr-lg">操作</th>';
+    html+='</tr></thead><tbody>';
+    data.forEach((row,i)=>{
+      html+=`<tr class="border-b border-gray-100 hover:bg-gray-50/50">`;
+      html+=`<td class="px-3 py-2.5 text-gray-400">${i+1}</td>`;
+      cols.forEach(c=>{
+        const v=row[c.key];
+        let display='';
+        if(c.type==='select'&&v){
+          const tagClass=getTagClass(v);
+          display=`<span class="tag ${tagClass}">${v}</span>`;
+        }else if(c.type==='textarea'&&v){
+          display=`<span class="text-gray-600" title="${escHtml(v)}">${escHtml(v.length>30?v.substring(0,30)+'...':v)}</span>`;
+        }else if(c.type==='number'&&v!==null&&v!==undefined){
+          display=`<span class="font-medium">${v}</span>`;
+        }else{
+          display=escHtml(v||'');
+        }
+        html+=`<td class="px-3 py-2.5">${display}</td>`;
+      });
+      html+=`<td class="px-3 py-2.5 text-right">
+        <button onclick="openCrudModal('${row.id}')" class="text-indigo-500 hover:text-indigo-700 text-xs mr-2"><i class="fa fa-edit"></i> 编辑</button>
+        <button onclick="deleteRow('${row.id}')" class="text-red-400 hover:text-red-600 text-xs"><i class="fa fa-trash"></i> 删除</button>
+      </td>`;
+      html+='</tr>';
+    });
+    html+='</tbody></table></div>';
+  }
+  container.innerHTML=html;
+}
+
+function getTagClass(val){
+  const green=['已完成','通过','充足','已就位','已发布','是','已入职'];
+  const yellow=['进行中','编写中','拍摄中','整理中','已排期','面试中','良','已确认','预警'];
+  const red=['未通过','缺货','差','紧急','需修改'];
+  const blue=['待处理','待编写','待拍摄','待确认','未准备','待发布','招聘中','待开始','一般'];
+  if(green.includes(val))return 'tag-green';
+  if(yellow.includes(val))return 'tag-yellow';
+  if(red.includes(val))return 'tag-red';
+  if(blue.includes(val))return 'tag-blue';
+  return 'tag-gray';
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ===== CRUD MODAL =====
+function openCrudModal(id){
+  editingId=id;
+  const t=currentTableConfig;
+  const isEdit=!!id;
+  document.getElementById('crudModalTitle').textContent=isEdit?'编辑记录':'新增记录';
+  document.getElementById('crudError').classList.add('hidden');
+
+  let row={};
+  if(isEdit){
+    const data=tableDataCache[t.id]||[];
+    row=data.find(r=>r.id===id)||{};
+  }
+
+  let fieldsHtml='';
+  t.cols.forEach(c=>{
+    const val=row[c.key]||'';
+    fieldsHtml+=`<div><label class="block text-sm font-medium text-gray-700 mb-1">${c.label}</label>`;
+    if(c.type==='select'){
+      fieldsHtml+=`<select id="field-${c.key}" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">`;
+      fieldsHtml+=`<option value="">请选择</option>`;
+      (c.options||[]).forEach(o=>{fieldsHtml+=`<option value="${o}" ${val===o?'selected':''}>${o}</option>`;});
+      fieldsHtml+=`</select>`;
+    }else if(c.type==='textarea'){
+      fieldsHtml+=`<textarea id="field-${c.key}" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none">${escHtml(val)}</textarea>`;
+    }else{
+      fieldsHtml+=`<input id="field-${c.key}" type="${c.type==='number'?'number':'text'}" value="${escHtml(val)}" ${c.type==='date'||c.type==='datetime-local'||c.type==='time'?'type="'+c.type+'"':''} class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/>`;
+    }
+    fieldsHtml+=`</div>`;
+  });
+  document.getElementById('crudFormFields').innerHTML=fieldsHtml;
+  document.getElementById('crudModal').classList.remove('hidden');
+}
+
+function closeCrudModal(){
+  document.getElementById('crudModal').classList.add('hidden');
+  editingId=null;
+}
+
+async function saveCrud(){
+  const t=currentTableConfig;
+  const record={};
+  t.cols.forEach(c=>{
+    const el=document.getElementById('field-'+c.key);
+    if(!el)return;
+    let v=el.value;
+    if(c.type==='number'&&v!=='')v=parseFloat(v);
+    record[c.key]=v||null;
+  });
+
+  // Add filter fields
+  if(t.filter){Object.assign(record,t.filter);}
+  if(t.extraFilter){Object.assign(record,t.extraFilter);}
+
+  const errEl=document.getElementById('crudError');
+  errEl.classList.add('hidden');
+  const btn=document.getElementById('crudSaveBtn');
+  btn.disabled=true;btn.textContent='保存中...';
+
+  try{
+    let result;
+    if(editingId){
+      result=await db.from(t.table).update(record).eq('id',editingId).select('*').single();
+    }else{
+      result=await db.from(t.table).insert(record).select('*').single();
+    }
+    if(result.error){errEl.textContent='保存失败: '+result.error.message;errEl.classList.remove('hidden');return;}
+    closeCrudModal();
+    showToast(editingId?'已更新':'已添加','bg-green-500');
+    // Reload current tab
+    const m=currentModule;
+    const allTables=[...m.tables,...COMMON_TABLES.map(ct=>({...ct,table:ct.table,extraFilter:{module_id:m.id}}))];
+    const idx=allTables.findIndex(x=>x.id===t.id);
+    if(idx>=0)switchTab(m.id,idx);
+  }catch(e){errEl.textContent='保存失败: '+e.message;errEl.classList.remove('hidden');}
+  finally{btn.disabled=false;btn.textContent='保存';}
+}
+
+async function deleteRow(id){
+  if(!confirm('确定要删除这条记录吗？'))return;
+  const t=currentTableConfig;
+  const{error}=await db.from(t.table).delete().eq('id',id);
+  if(error){showToast('删除失败','bg-red-500');return;}
+  showToast('已删除','bg-green-500');
+  const m=currentModule;
+  const allTables=[...m.tables,...COMMON_TABLES.map(ct=>({...ct,table:ct.table,extraFilter:{module_id:m.id}}))];
+  const idx=allTables.findIndex(x=>x.id===t.id);
+  if(idx>=0)switchTab(m.id,idx);
+}
+
+// ===== UTILS =====
+function showToast(msg,bg='bg-indigo-500'){
+  const t=document.getElementById('toast');
+  t.className=`fixed bottom-6 right-6 z-[100] px-5 py-3 rounded-xl text-white text-sm font-medium card-shadow ${bg}`;
+  t.textContent=msg;t.classList.remove('hidden');
+  setTimeout(()=>t.classList.add('hidden'),3000);
+}
+
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
+
+init();
+</script>
+</body>
+</html>
